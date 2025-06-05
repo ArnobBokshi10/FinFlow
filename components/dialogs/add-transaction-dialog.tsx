@@ -8,10 +8,15 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
+import { useUser } from "@/lib/context/user-context"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export function AddTransactionDialog() {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const { user } = useUser()
+  const supabase = createClientComponentClient()
+  
   const [formData, setFormData] = useState({
     description: "",
     amount: "",
@@ -22,13 +27,30 @@ export function AddTransactionDialog() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) {
+      toast.error("Please sign in to add transactions")
+      return
+    }
+    
     setIsLoading(true)
 
     try {
-      // Here you would make an API call to add the transaction
-      // For now, we'll simulate it
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([
+          {
+            user_id: user.id,
+            description: formData.description,
+            amount: formData.type === 'EXPENSE' ? -Number(formData.amount) : Number(formData.amount),
+            category: formData.category,
+            account: formData.account,
+            date: new Date().toISOString()
+          }
+        ])
+        .select()
+
+      if (error) throw error
+
       toast.success("Transaction added successfully!")
       setIsOpen(false)
       setFormData({
@@ -39,6 +61,7 @@ export function AddTransactionDialog() {
         account: ""
       })
     } catch (error) {
+      console.error('Error adding transaction:', error)
       toast.error("Failed to add transaction. Please try again.")
     } finally {
       setIsLoading(false)
