@@ -9,13 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { useUser } from "@/lib/context/user-context"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { prisma } from "@/lib/db"
 
 export function AddTransactionDialog() {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { user } = useUser()
-  const supabase = createClientComponentClient()
   
   const [formData, setFormData] = useState({
     description: "",
@@ -35,21 +34,17 @@ export function AddTransactionDialog() {
     setIsLoading(true)
 
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert([
-          {
-            user_id: user.id,
-            description: formData.description,
-            amount: formData.type === 'EXPENSE' ? -Number(formData.amount) : Number(formData.amount),
-            category: formData.category,
-            account: formData.account,
-            date: new Date().toISOString()
-          }
-        ])
-        .select()
-
-      if (error) throw error
+      const transaction = await prisma.transaction.create({
+        data: {
+          description: formData.description,
+          amount: formData.type === 'EXPENSE' ? -Number(formData.amount) : Number(formData.amount),
+          type: formData.type,
+          categoryId: formData.category,
+          userId: user.id,
+          accountId: formData.account,
+          date: new Date()
+        }
+      })
 
       toast.success("Transaction added successfully!")
       setIsOpen(false)
